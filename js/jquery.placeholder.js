@@ -1,81 +1,90 @@
 (function($) {
+    /**
+     * Spoofs placeholders in browsers that don't support them (eg Firefox 3)
+     * 
+     * Copyright 2011 Dan Bentley
+     * Licensed under the Apache License 2.0
+     *
+     * Author: Dan Bentley [github.com/danbentley]
+     */
 
-	/**
-	 * Spoofs placeholders in browsers that don't support them (eg Firefox 3)
-	 * 
-	 * Copyright 2011 Dan Bentley
-	 * Licensed under the Apache License 2.0
-	 *
-	 * Author: Dan Bentley [github.com/danbentley]
-	 */
 
-	// Return if native support is available.
-	if ("placeholder" in document.createElement("input")) return;
+    function setupPlaceholder(input) {
 
-	$(document).ready(function(){
-		$(':input[placeholder]').not(':password').each(function() {
-			setupPlaceholder($(this));
-		});
+        var placeholderText = input.attr('placeholder');
 
-		$(':password[placeholder]').each(function() {
-			setupPasswords($(this));
-		});
-	   
-		$('form').submit(function(e) {
-			clearPlaceholdersBeforeSubmit($(this));
-		});
-	});
+        setPlaceholderOrFlagChanged(input, placeholderText);
+        input.focus(function(e) {
+            if (input.data('changed') === true) return;
+            if (input.val() === placeholderText) input.val('');
+        }).blur(function(e) {
+            if (input.val() === '') input.val(placeholderText); 
+        }).change(function(e) {
+            input.data('changed', input.val() !== '');
+        });
+    }
 
-	function setupPlaceholder(input) {
+    function setPlaceholderOrFlagChanged(input, text) {
+        (input.val() === '') ? input.val(text) : input.data('changed', true);
+    }
 
-		var placeholderText = input.attr('placeholder');
+    function setupPasswords(input) {
+        var passwordPlaceholder = createPasswordPlaceholder(input);
+        input.after(passwordPlaceholder);
 
-		setPlaceholderOrFlagChanged(input, placeholderText);
-		input.focus(function(e) {
-			if (input.data('changed') === true) return;
-			if (input.val() === placeholderText) input.val('');
-		}).blur(function(e) {
-			if (input.val() === '') input.val(placeholderText); 
-		}).change(function(e) {
-			input.data('changed', input.val() !== '');
-		});
-	}
+        (input.val() === '') ? input.hide() : passwordPlaceholder.hide();
 
-	function setPlaceholderOrFlagChanged(input, text) {
-		(input.val() === '') ? input.val(text) : input.data('changed', true);
-	}
+        $(input).blur(function(e) {
+            if (input.val() !== '') return;
+            input.hide();
+            passwordPlaceholder.show();
+        });
+            
+        $(passwordPlaceholder).focus(function(e) {
+            input.show().focus();
+            passwordPlaceholder.hide();
+        });
+    }
 
-	function setupPasswords(input) {
-		var passwordPlaceholder = createPasswordPlaceholder(input);
-		input.after(passwordPlaceholder);
+    function createPasswordPlaceholder(input) {
+        return $('<input>').attr({
+            placeholder: input.attr('placeholder'),
+            value: input.attr('placeholder'),
+            id: input.attr('id'),
+            readonly: true
+        }).addClass(input.attr('class'));
+    }
 
-		(input.val() === '') ? input.hide() : passwordPlaceholder.hide();
+    function clearPlaceholdersBeforeSubmit(form) {
+        form.find(':input[placeholder]').each(function() {
+            if ($(this).data('changed') === true) return;
+            if ($(this).val() === $(this).attr('placeholder')) $(this).val('');
+        });
+    }
 
-		$(input).blur(function(e) {
-			if (input.val() !== '') return;
-			input.hide();
-			passwordPlaceholder.show();
-		});
-			
-		$(passwordPlaceholder).focus(function(e) {
-			input.show().focus();
-			passwordPlaceholder.hide();
-		});
-	}
+    $.fn.placeholder = function() {
+        // Return if native support is available.
+        if ( "placeholder" in document.createElement("input") )
+            return this;
 
-	function createPasswordPlaceholder(input) {
-		return $('<input>').attr({
-			placeholder: input.attr('placeholder'),
-			value: input.attr('placeholder'),
-			id: input.attr('id'),
-			readonly: true
-		}).addClass(input.attr('class'));
-	}
+        return this.each(function() {
+            var $parent = $(this);
 
-	function clearPlaceholdersBeforeSubmit(form) {
-		form.find(':input[placeholder]').each(function() {
-			if ($(this).data('changed') === true) return;
-			if ($(this).val() === $(this).attr('placeholder')) $(this).val('');
-		});
-	}
+            $(':input[placeholder]', $parent).not(':password').each(function() {
+                setupPlaceholder($(this));
+            });
+
+            $(':password[placeholder]', $parent).each(function() {
+                setupPasswords($(this));
+            });
+           
+            $('form', $parent).submit(function(e) {
+                clearPlaceholdersBeforeSubmit($(this));
+            });
+        });
+    }
+
+    $(document).ready(function(){
+        $('body').placeholder();
+    });
 })(jQuery);
